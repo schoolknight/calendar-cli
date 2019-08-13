@@ -34,7 +34,6 @@ import logging
 import sys
 import re
 import urllib3
-from getpass import getpass
 
 __version__ = "0.11.0.dev0"
 __author__ = "Tobias Brox"
@@ -239,14 +238,8 @@ def interactive_config(args, config, remaining_argv):
         config[section] = {}
 
     for config_key in ('caldav_url', 'caldav_user', 'caldav_pass', 'caldav_proxy', 'ssl_verify_cert', 'language', 'timezone', 'inherits'):
-
-        if config_key == 'caldav_pass':
-            print("Config option caldav_pass - old value: **HIDDEN**")
-            value = getpass(prompt="Enter new value (or just enter to keep the old): ")
-        else:
-            print("Config option %s - old value: %s" % (config_key, config[section].get(config_key, '(None)')))
-            value = raw_input("Enter new value (or just enter to keep the old): ")
-
+        print("Config option %s - old value: %s" % (config_key, config[section].get(config_key, '(None)')))
+        value = raw_input("Enter new value (or just enter to keep the old): ")
         if value:
             config[section][config_key] = value
             modified = True
@@ -650,6 +643,15 @@ def todo_list(caldav_conn, args):
                     t['summary'] = getattr(task.instance.vtodo, summary_attr).value
                     break
             t['uid'] = task.instance.vtodo.uid.value
+            
+            
+            t['categories'] = ""
+            if hasattr(task.instance.vtodo, 'categories'):
+                catList = []
+                for tmpCat in task.instance.vtodo.__dict__['contents']['categories']:
+                    catList.append(tmpCat.value[0])
+                t['categories'] = ','.join(catList)
+                t['categories'] = t['categories'].encode('utf-8')
             ## TODO: this will probably break and is probably moot on python3?
             if hasattr(t['summary'], 'encode') and isinstance(t['summary'], unicode):
                 t['summary'] = t['summary'].encode('utf-8')
