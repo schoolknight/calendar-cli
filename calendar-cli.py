@@ -98,7 +98,7 @@ time_units = {
 vtodo_txt_one = ['location', 'description', 'geo', 'organizer', 'summary']
 vtodo_txt_many = ['categories', 'comment', 'contact', 'resources']
 vcal_txt_one = ['location', 'description']
-vcal_txt_many = []
+vcal_txt_many = ['categories']
 
 def niy(*args, **kwargs):
     if 'feature' in kwargs:
@@ -120,7 +120,7 @@ def parse_time_delta(delta_string):
     # TODO: handle bad strings more gracefully
     if len(delta_string) < 2 or delta_string[-1].lower() not in time_units:
         raise ValueError("Invalid time delta: %s" % delta_string)
-    num = int(delta_string[:-1])
+    num = int(delta_string[:-1]) * (-1)
     return timedelta(0, num*time_units[delta_string[-1].lower()])
 
 def find_calendar(caldav_conn, args):
@@ -282,7 +282,9 @@ def create_alarm(message, relative_timedelta):
     alarm = Alarm()
     alarm.add('ACTION', 'DISPLAY')
     alarm.add('DESCRIPTION', message)
+    #print(relative_timedelta);
     alarm.add('TRIGGER', relative_timedelta, parameters={'VALUE':'DURATION'})
+
     return alarm
 
 def calendar_add(caldav_conn, args):
@@ -325,14 +327,27 @@ def calendar_add(caldav_conn, args):
     event.add('dtstamp', _now())
     uid = uuid.uuid1()
     event.add('uid', str(uid))
-    for attr in vcal_txt_one + vcal_txt_many:
+    for attr in vcal_txt_one:
         if attr == 'summary':
             continue
         val = getattr(args, 'set_'+attr)
         if val:
             event.add(attr, val)
+    
+    for attr in vcal_txt_many:
+        val = getattr(args, 'set_'+attr)
+        if val:
+            vals = val.split(',')
+            event.add(attr, vals)
+
     event.add('summary', ' '.join(args.summary))
+
+    if args.alarm is not None:
+        alarm = create_alarm(' '.join(args.summary), parse_time_delta(args.alarm))
+        event.add_component(alarm)
+
     cal.add_component(event)
+    #print(cal.to_ical())
     _calendar_addics(caldav_conn, cal.to_ical(), uid, args)
     print("Added event with uid=%s" % uid)
 
@@ -479,6 +494,8 @@ def calendar_agenda(caldav_conn, args):
                     events.append({'dtstart': dtstart, 'instance': event})
         events.sort(lambda a,b: cmp(a['dtstart'], b['dtstart']))
         for event in events:
+            #e = {'instance': event}
+
             event['summary'] = "(no description)"
             event['dtstart'] = event['dtstart'].strftime(args.timestamp_format)
             for timeattr in ('dtcreated', 'dtend'):
@@ -502,6 +519,12 @@ def calendar_agenda(caldav_conn, args):
             for attr in vcal_txt_one + ['summary']:
                 if isinstance(event[attr], unicode):
                     event[attr] = event[attr].encode('utf-8')
+            
+
+            #event['categories'] = ""
+
+
+            #print(event)
             print(args.event_template.format(**event))
 
 def todo_select(caldav_conn, args):
@@ -874,7 +897,9 @@ def main():
     calendar_add_parser.add_argument('summary', nargs='+')
     calendar_add_parser.set_defaults(func=calendar_add)
     calendar_add_parser.add_argument('--whole-day', help='Whole-day event', action='store_true', default=False)
-
+    calendar_add_parser.add_argument('--alarm', metavar='DURATION_BEFORE',
+        help="specifies a time at which a reminder should be presented for this event, " \
+             "relative to the start time of the event (as a timestamp delta)")
     for attr in vcal_txt_one + vcal_txt_many:
         calendar_add_parser.add_argument('--set-'+attr, help='Set '+attr)
 
