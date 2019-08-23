@@ -149,6 +149,7 @@ def _calendar_addics(caldav_conn, ics, uid, args):
 
     try:
         c = find_calendar(caldav_conn, args)
+        print(ics);
         if re.search(r'^METHOD:[A-Z]+[\r\n]+',ics,flags=re.MULTILINE) and args.ignoremethod:
             ics = re.sub(r'^METHOD:[A-Z]+[\r\n]+', '', ics, flags=re.MULTILINE)
             print ("METHOD property found and ignored")
@@ -295,6 +296,10 @@ def calendar_add(caldav_conn, args):
     ## TODO: timezone
     ## read timestamps from arguments
     event_spec = args.event_time.split('+')
+    print(event_spec)
+
+    
+
     if len(event_spec)>3:
         raise ValueError('Invalid event time "%s" - can max contain 2 plus-signs' % args.event_time)
     elif len(event_spec)==3:
@@ -349,7 +354,7 @@ def calendar_add(caldav_conn, args):
     cal.add_component(event)
     #print(cal.to_ical())
     _calendar_addics(caldav_conn, cal.to_ical(), uid, args)
-    print("Added event with uid=%s" % uid)
+    print(uid)
 
 def calendar_delete(caldav_conn, args):
     cal = find_calendar(caldav_conn, args)
